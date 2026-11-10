@@ -8,7 +8,7 @@
 
 set -uo pipefail
 
-VERSION="0.1.0"
+VERSION="0.2.0"
 ORG="storytold"
 DEFAULT_DEST="/usr/local/bin"
 
@@ -17,11 +17,16 @@ APP_LIST='cadcraft|CADCraft
 craft-anything|Craft Anything
 deckcraft|DeckCraft
 designcraft|DesignCraft
+effectcraft|EffectCraft
 figcraft|FigCraft
+filmcraft|FilmCraft
 gridcraft|GridCraft
 lightcraft|LightCraft
+materialcraft|MaterialCraft
 pdfcraft|PDFCraft
 photocraft|PhotoCraft
+soundcraft|SoundCraft
+texturecraft|TextureCraft
 vectorcraft|VectorCraft
 wordcraft|WordCraft'
 
