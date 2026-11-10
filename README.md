@@ -22,7 +22,9 @@ It does not install or update the **apps themselves**. For that, use the officia
 
 ## Supported apps
 
-CADCraft, Craft Anything, DeckCraft, DesignCraft, FigCraft, GridCraft, LightCraft, PDFCraft, PhotoCraft, VectorCraft, WordCraft.
+CADCraft, Craft Anything, DeckCraft, DesignCraft, EffectCraft, FigCraft, FilmCraft, GridCraft, LightCraft, MaterialCraft, PDFCraft, PhotoCraft, SoundCraft, TextureCraft, VectorCraft, WordCraft.
+
+AniCraft is not included because it has no published release yet.
 
 ## Requirements
 
