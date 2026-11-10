@@ -114,8 +114,8 @@ N=0
 while IFS='|' read -r slug display; do
   [ -z "$slug" ] && continue
   is_selected "$slug" || continue
-  A_SLUG[$N]="$slug"; A_DISPLAY[$N]="$display"
-  A_BIN[$N]=""; A_INST[$N]=""; A_LATEST[$N]=""; A_CLI_URL[$N]=""; A_SUMS_URL[$N]=""; A_STATE[$N]=""; A_NOTE[$N]=""
+  A_SLUG[N]="$slug"; A_DISPLAY[N]="$display"
+  A_BIN[N]=""; A_INST[N]=""; A_LATEST[N]=""; A_CLI_URL[N]=""; A_SUMS_URL[N]=""; A_STATE[N]=""; A_NOTE[N]=""
   N=$((N + 1))
 done <<EOF
 $APP_LIST
@@ -155,10 +155,12 @@ find_bundle() {  # $1 = display name; prints the .app path if found (heuristic: 
 # True if $1 < $2 (dotted numeric versions).
 ver_lt() {
   local IFS=.
-  local -a a=($1) b=($2)
+  local -a a b
+  read -r -a a <<<"$1"
+  read -r -a b <<<"$2"
   local i x y
   for i in 0 1 2; do
-    x="${a[$i]:-0}"; y="${b[$i]:-0}"
+    x="${a[i]:-0}"; y="${b[i]:-0}"
     x="${x//[!0-9]/}"; y="${y//[!0-9]/}"
     x=$((10#${x:-0})); y=$((10#${y:-0}))
     [ "$x" -lt "$y" ] && return 0
@@ -173,11 +175,11 @@ if [ "$MODE" = "list" ]; then
   printf '%-16s %-10s %-34s %s\n' "APP" "CLI" "CLI PATH" ".APP BUNDLE"
   i=0
   while [ "$i" -lt "$N" ]; do
-    bin="${A_SLUG[$i]}-cli"
+    bin="${A_SLUG[i]}-cli"
     path="$(find_cli "$bin")"
     ver="-"; [ -n "$path" ] && ver="$(version_of "$path")"; [ -z "$ver" ] && ver="?"
-    bundle="$(find_bundle "${A_DISPLAY[$i]}" || true)"
-    printf '%-16s %-10s %-34s %s\n' "${A_SLUG[$i]}" "$ver" "${path:--}" "${bundle:--}"
+    bundle="$(find_bundle "${A_DISPLAY[i]}" || true)"
+    printf '%-16s %-10s %-34s %s\n' "${A_SLUG[i]}" "$ver" "${path:--}" "${bundle:--}"
     i=$((i + 1))
   done
   say
@@ -189,41 +191,41 @@ fi
 
 inspect_app() {
   local i="$1" slug json tag urls
-  slug="${A_SLUG[$i]}"
-  A_BIN[$i]="$(find_cli "${slug}-cli")"
-  [ -n "${A_BIN[$i]}" ] && A_INST[$i]="$(version_of "${A_BIN[$i]}")"
+  slug="${A_SLUG[i]}"
+  A_BIN[i]="$(find_cli "${slug}-cli")"
+  [ -n "${A_BIN[i]}" ] && A_INST[i]="$(version_of "${A_BIN[i]}")"
 
-  if [ -z "${A_BIN[$i]}" ] && [ "$INSTALL_MISSING" -eq 0 ]; then
-    A_STATE[$i]="SKIP"; A_NOTE[$i]="CLI not installed (use --install to add it)"
+  if [ -z "${A_BIN[i]}" ] && [ "$INSTALL_MISSING" -eq 0 ]; then
+    A_STATE[i]="SKIP"; A_NOTE[i]="CLI not installed (use --install to add it)"
     return
   fi
 
   if ! json="$(curl_api "https://api.github.com/repos/$ORG/$slug/releases/latest")"; then
-    A_STATE[$i]="ERROR"; A_NOTE[$i]="could not read the latest release (no release, or API rate limit)"
+    A_STATE[i]="ERROR"; A_NOTE[i]="could not read the latest release (no release, or API rate limit)"
     return
   fi
   tag="$(grep -m1 '"tag_name"' <<<"$json" | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/')"
-  A_LATEST[$i]="${tag#v}"
+  A_LATEST[i]="${tag#v}"
   urls="$(grep -Eo '"browser_download_url": *"[^"]+"' <<<"$json" | sed -E 's/.*"(https[^"]+)"$/\1/')"
-  A_CLI_URL[$i]="$(grep -m1 -E -- '-cli-.*macos-universal\.zip$' <<<"$urls")"
-  [ -z "${A_CLI_URL[$i]}" ] && A_CLI_URL[$i]="$(grep -m1 -E -- '-cli-.*macos.*\.zip$' <<<"$urls")"
-  A_SUMS_URL[$i]="$(grep -m1 -E '/SHA256SUMS\.txt$' <<<"$urls")"
+  A_CLI_URL[i]="$(grep -m1 -E -- '-cli-.*macos-universal\.zip$' <<<"$urls")"
+  [ -z "${A_CLI_URL[i]}" ] && A_CLI_URL[i]="$(grep -m1 -E -- '-cli-.*macos.*\.zip$' <<<"$urls")"
+  A_SUMS_URL[i]="$(grep -m1 -E '/SHA256SUMS\.txt$' <<<"$urls")"
 
-  if [ -z "${A_LATEST[$i]}" ] || [ -z "${A_CLI_URL[$i]}" ]; then
-    A_STATE[$i]="ERROR"; A_NOTE[$i]="release ${tag:-?} has no macOS CLI zip"
+  if [ -z "${A_LATEST[i]}" ] || [ -z "${A_CLI_URL[i]}" ]; then
+    A_STATE[i]="ERROR"; A_NOTE[i]="release ${tag:-?} has no macOS CLI zip"
     return
   fi
 
-  if [ -z "${A_BIN[$i]}" ]; then
-    A_STATE[$i]="INSTALL"; A_NOTE[$i]="not installed -> ${A_LATEST[$i]}"
-  elif [ -z "${A_INST[$i]}" ]; then
-    A_STATE[$i]="UPDATE"; A_NOTE[$i]="installed version unknown -> ${A_LATEST[$i]}"
-  elif [ "${A_INST[$i]}" = "${A_LATEST[$i]}" ]; then
-    A_STATE[$i]="OK"; A_NOTE[$i]="${A_INST[$i]}"
-  elif ver_lt "${A_INST[$i]}" "${A_LATEST[$i]}"; then
-    A_STATE[$i]="UPDATE"; A_NOTE[$i]="${A_INST[$i]} -> ${A_LATEST[$i]}"
+  if [ -z "${A_BIN[i]}" ]; then
+    A_STATE[i]="INSTALL"; A_NOTE[i]="not installed -> ${A_LATEST[i]}"
+  elif [ -z "${A_INST[i]}" ]; then
+    A_STATE[i]="UPDATE"; A_NOTE[i]="installed version unknown -> ${A_LATEST[i]}"
+  elif [ "${A_INST[i]}" = "${A_LATEST[i]}" ]; then
+    A_STATE[i]="OK"; A_NOTE[i]="${A_INST[i]}"
+  elif ver_lt "${A_INST[i]}" "${A_LATEST[i]}"; then
+    A_STATE[i]="UPDATE"; A_NOTE[i]="${A_INST[i]} -> ${A_LATEST[i]}"
   else
-    A_STATE[$i]="AHEAD"; A_NOTE[$i]="installed ${A_INST[$i]} is newer than latest release ${A_LATEST[$i]}"
+    A_STATE[i]="AHEAD"; A_NOTE[i]="installed ${A_INST[i]} is newer than latest release ${A_LATEST[i]}"
   fi
 }
 
@@ -231,7 +233,7 @@ print_table() {
   local i=0
   printf '%-16s %-10s %s\n' "APP" "STATE" "DETAIL"
   while [ "$i" -lt "$N" ]; do
-    printf '%-16s %-10s %s\n' "${A_SLUG[$i]}" "${A_STATE[$i]}" "${A_NOTE[$i]}"
+    printf '%-16s %-10s %s\n' "${A_SLUG[i]}" "${A_STATE[i]}" "${A_NOTE[i]}"
     i=$((i + 1))
   done
 }
@@ -254,7 +256,7 @@ fi
 TODO=0
 i=0
 while [ "$i" -lt "$N" ]; do
-  case "${A_STATE[$i]}" in UPDATE|INSTALL) TODO=$((TODO + 1)) ;; esac
+  case "${A_STATE[i]}" in UPDATE|INSTALL) TODO=$((TODO + 1)) ;; esac
   i=$((i + 1))
 done
 if [ "$TODO" -eq 0 ]; then
@@ -274,8 +276,8 @@ fi
 need_sudo=0
 i=0
 while [ "$i" -lt "$N" ]; do
-  case "${A_STATE[$i]}" in
-    UPDATE) [ -w "$(dirname "${A_BIN[$i]}")" ] || need_sudo=1 ;;
+  case "${A_STATE[i]}" in
+    UPDATE) [ -w "$(dirname "${A_BIN[i]}")" ] || need_sudo=1 ;;
     INSTALL) [ -w "$DEST" ] || need_sudo=1 ;;
   esac
   i=$((i + 1))
@@ -292,34 +294,34 @@ trap 'rm -rf "$WORK"' EXIT
 
 apply_app() {
   local i="$1" slug dir zipname zip expected actual newbin target sudo="" now
-  slug="${A_SLUG[$i]}"
+  slug="${A_SLUG[i]}"
   dir="$WORK/$slug"; mkdir -p "$dir/unzipped"
-  zipname="$(basename "${A_CLI_URL[$i]}")"; zip="$dir/$zipname"
+  zipname="$(basename "${A_CLI_URL[i]}")"; zip="$dir/$zipname"
 
-  say; say "=== $slug ${A_LATEST[$i]} ==="
+  say; say "=== $slug ${A_LATEST[i]} ==="
   say "  downloading $zipname ..."
-  curl -fL --progress-bar -o "$zip" "${A_CLI_URL[$i]}" || { A_STATE[$i]="FAILED"; A_NOTE[$i]="download failed"; return; }
+  curl -fL --progress-bar -o "$zip" "${A_CLI_URL[i]}" || { A_STATE[i]="FAILED"; A_NOTE[i]="download failed"; return; }
 
   # The checksum is mandatory: no checksum, no install.
-  if [ -z "${A_SUMS_URL[$i]}" ]; then A_STATE[$i]="FAILED"; A_NOTE[$i]="release has no SHA256SUMS.txt"; return; fi
-  expected="$(curl -fsSL "${A_SUMS_URL[$i]}" | awk -v f="$zipname" '{n=$2; sub(/^\*/,"",n); if (n==f) print $1}' | sed -n 1p)"
+  if [ -z "${A_SUMS_URL[i]}" ]; then A_STATE[i]="FAILED"; A_NOTE[i]="release has no SHA256SUMS.txt"; return; fi
+  expected="$(curl -fsSL "${A_SUMS_URL[i]}" | awk -v f="$zipname" '{n=$2; sub(/^\*/,"",n); if (n==f) print $1}' | sed -n 1p)"
   actual="$(sha256 "$zip")"
   if [ -z "$expected" ] || [ "$expected" != "$actual" ]; then
-    A_STATE[$i]="FAILED"; A_NOTE[$i]="SHA-256 mismatch (expected ${expected:-none})"; return
+    A_STATE[i]="FAILED"; A_NOTE[i]="SHA-256 mismatch (expected ${expected:-none})"; return
   fi
   say "  SHA-256 verified."
 
-  unzip -q "$zip" -d "$dir/unzipped" || { A_STATE[$i]="FAILED"; A_NOTE[$i]="could not unzip"; return; }
+  unzip -q "$zip" -d "$dir/unzipped" || { A_STATE[i]="FAILED"; A_NOTE[i]="could not unzip"; return; }
   newbin="$(find "$dir/unzipped" -type f -name '*-cli' | sed -n 1p)"
   [ -z "$newbin" ] && newbin="$(find "$dir/unzipped" -type f -name '*cli*' ! -name '*.txt' ! -name '*.md' | sed -n 1p)"
-  [ -n "$newbin" ] || { A_STATE[$i]="FAILED"; A_NOTE[$i]="no CLI binary inside the zip"; return; }
+  [ -n "$newbin" ] || { A_STATE[i]="FAILED"; A_NOTE[i]="no CLI binary inside the zip"; return; }
   chmod +x "$newbin"
 
-  if [ -n "${A_BIN[$i]}" ]; then target="${A_BIN[$i]}"; else target="$DEST/$(basename "$newbin")"; fi
+  if [ -n "${A_BIN[i]}" ]; then target="${A_BIN[i]}"; else target="$DEST/$(basename "$newbin")"; fi
   [ -w "$(dirname "$target")" ] || sudo="sudo"
 
   if [ -e "$target" ]; then
-    $sudo cp -p "$target" "$target.bak" || { A_STATE[$i]="FAILED"; A_NOTE[$i]="could not back up $target"; return; }
+    $sudo cp -p "$target" "$target.bak" || { A_STATE[i]="FAILED"; A_NOTE[i]="could not back up $target"; return; }
   fi
 
   # rm + install, never cp over the old file: macOS kills a binary overwritten in place
@@ -327,22 +329,22 @@ apply_app() {
   $sudo rm -f "$target"
   if ! $sudo install -m 755 "$newbin" "$target"; then
     [ -e "$target.bak" ] && $sudo cp -p "$target.bak" "$target"
-    A_STATE[$i]="FAILED"; A_NOTE[$i]="install failed (backup restored)"; return
+    A_STATE[i]="FAILED"; A_NOTE[i]="install failed (backup restored)"; return
   fi
   $sudo xattr -d com.apple.quarantine "$target" 2>/dev/null || true
 
   if ! now="$("$target" --version 2>&1)"; then
     if [ -e "$target.bak" ]; then $sudo rm -f "$target"; $sudo cp -p "$target.bak" "$target"; fi
-    A_STATE[$i]="REVERTED"; A_NOTE[$i]="new binary did not run; previous version restored"; return
+    A_STATE[i]="REVERTED"; A_NOTE[i]="new binary did not run; previous version restored"; return
   fi
   say "  installed at $target ($(printf '%s\n' "$now" | sed -n 1p))"
-  A_STATE[$i]="DONE"
-  if [ -n "${A_INST[$i]}" ]; then A_NOTE[$i]="${A_INST[$i]} -> ${A_LATEST[$i]}"; else A_NOTE[$i]="installed ${A_LATEST[$i]}"; fi
+  A_STATE[i]="DONE"
+  if [ -n "${A_INST[i]}" ]; then A_NOTE[i]="${A_INST[i]} -> ${A_LATEST[i]}"; else A_NOTE[i]="installed ${A_LATEST[i]}"; fi
 }
 
 i=0
 while [ "$i" -lt "$N" ]; do
-  case "${A_STATE[$i]}" in UPDATE|INSTALL) apply_app "$i" ;; esac
+  case "${A_STATE[i]}" in UPDATE|INSTALL) apply_app "$i" ;; esac
   i=$((i + 1))
 done
 
@@ -352,7 +354,7 @@ print_table
 
 i=0
 while [ "$i" -lt "$N" ]; do
-  case "${A_STATE[$i]}" in FAILED|REVERTED|ERROR) exit 1 ;; esac
+  case "${A_STATE[i]}" in FAILED|REVERTED|ERROR) exit 1 ;; esac
   i=$((i + 1))
 done
 exit 0
